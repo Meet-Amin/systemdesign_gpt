@@ -13,7 +13,6 @@ from .schemas import ClarificationResponse, DesignResponse
 
 MODEL = "gpt-4o-mini"
 
-# Load local environment variables (for example from .env) before reading OPENAI_API_KEY.
 load_dotenv()
 
 
@@ -28,7 +27,7 @@ class DesignGenerator:
         self.model = model
 
     def _call_completion(self, prompt: str) -> str:
-        # Wrap the OpenAI chat completion API to keep retries and error handling centralized.
+        # Single gateway for LLM calls so error handling stays consistent.
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
@@ -53,7 +52,7 @@ class DesignGenerator:
             raise RuntimeError("OpenAI API call failed: " + str(exc)) from exc
 
     def _parse_json(self, payload: str) -> dict:
-        # Strip surrounding text in case the model adds prose before or after the JSON block.
+        # Recover the first JSON object even if the model wraps it with extra text.
         content = payload.strip()
         if not content:
             raise ValueError("LLM returned an empty response")

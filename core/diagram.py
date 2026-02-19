@@ -5,7 +5,6 @@ from .schemas import Component, DesignResponse
 
 
 def _format_node_id(name: str) -> str:
-    # sanitize names to valid Mermaid identifiers while guaranteeing uniqueness
     cleaned = re.sub(r"[^0-9a-zA-Z]+", "_", name).strip("_")
     return cleaned.lower() or "node"
 
@@ -40,7 +39,7 @@ def _build_flowchart_from_components(components: Iterable[Component]) -> str:
 
 
 def build_diagram(response: DesignResponse) -> str:
-    # Prefer the diagram authored by the LLM, fallback to component graph if missing.
+    # Use model-authored Mermaid when present; otherwise derive from component edges.
     candidate = response.mermaid_diagram.strip()
     if candidate:
         return candidate

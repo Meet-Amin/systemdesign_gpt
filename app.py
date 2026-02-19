@@ -95,7 +95,6 @@ def main() -> None:
     st.title(PAGE_TITLE)
     st.write("AI-native assistant that guides the system design interview workflow from clarifications through production-ready architecture.")
 
-    # Capture or reset the interview prompt before calling the model.
     with st.form("question_form"):
         question_input = st.text_area("System design question", value=st.session_state["question"], height=150)
         submit_question = st.form_submit_button("Ask clarifying questions")
@@ -121,7 +120,7 @@ def main() -> None:
             st.session_state["clarification_questions"] = clarification.questions
             st.session_state["clarification_answers"] = ["" for _ in clarification.questions]
             st.session_state["need_clarifications"] = False
-        except Exception as exc:  # pragma: no cover - external call
+        except Exception as exc:
             st.session_state["error_message"] = str(exc)
             st.session_state["need_clarifications"] = False
 
@@ -153,7 +152,7 @@ def main() -> None:
                     st.session_state["design_response"] = design
                     st.session_state["need_design"] = False
                     st.session_state["error_message"] = ""
-                except Exception as exc:  # pragma: no cover - external call
+                except Exception as exc:
                     st.session_state["error_message"] = str(exc)
         else:
             st.write("Clarifying questions will appear here once the system processes your prompt.")
