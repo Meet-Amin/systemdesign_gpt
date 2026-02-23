@@ -64,17 +64,29 @@ DESIGN_PROMPT = dedent(
 ).strip()
 
 
-def build_clarification_prompt(question: str) -> str:
+def _normalize_question(question: str) -> str:
     normalized_question = question.strip()
-    return CLARIFICATION_PROMPT.format(question=normalized_question)
+    if not normalized_question:
+        raise ValueError("question must be a non-empty string")
+    return normalized_question
+
+
+def _normalize_clarifications(clarifications: Sequence[str]) -> list[str]:
+    normalized = [item.strip() for item in clarifications if item.strip()]
+    if not normalized:
+        raise ValueError("clarifications must contain at least one non-empty entry")
+    return normalized
+
+
+def build_clarification_prompt(question: str) -> str:
+    """Build the prompt used to request three clarifying questions."""
+    return CLARIFICATION_PROMPT.format(question=_normalize_question(question))
 
 
 def build_design_prompt(question: str, clarifications: Sequence[str]) -> str:
-    normalized_question = question.strip()
-    normalized_clarifications = [item.strip() for item in clarifications if item.strip()]
-    if not normalized_clarifications:
-        raise ValueError("clarifications must contain at least one non-empty entry")
-
+    """Build the prompt used to generate the final system design JSON."""
+    normalized_question = _normalize_question(question)
+    normalized_clarifications = _normalize_clarifications(clarifications)
     answers = "\n\n".join(normalized_clarifications)
     return DESIGN_PROMPT.format(
         question=normalized_question,
