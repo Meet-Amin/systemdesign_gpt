@@ -7,7 +7,12 @@ from pydantic import BaseModel, Field
 
 from core.diagram import build_diagram
 from core.generator import DesignGenerator
-from core.schemas import ClarificationResponse, DesignPackage, DesignResponse
+from core.schemas import (
+    ClarificationResponse,
+    DesignPackage,
+    DesignResponse,
+    ImplementationPromptPack,
+)
 
 
 app = FastAPI(title="SystemDesign-GPT API", version="1.0.0")
@@ -33,6 +38,10 @@ class DesignWithDiagramResponse(BaseModel):
 
 class DesignPackageResponse(BaseModel):
     package: DesignPackage
+
+
+class PromptPackResponse(BaseModel):
+    prompt_pack: ImplementationPromptPack
 
 
 @app.get("/health")
@@ -75,5 +84,16 @@ def design_package_from_task(payload: TaskDesignRequest) -> DesignPackageRespons
         generator = DesignGenerator()
         package = generator.generate_design_package_from_task(payload.task)
         return DesignPackageResponse(package=package)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.post("/implementation-prompts-from-task", response_model=PromptPackResponse)
+def implementation_prompts_from_task(payload: TaskDesignRequest) -> PromptPackResponse:
+    try:
+        generator = DesignGenerator()
+        package = generator.generate_design_package_from_task(payload.task)
+        prompt_pack = generator.generate_implementation_prompt_pack(payload.task, package)
+        return PromptPackResponse(prompt_pack=prompt_pack)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc

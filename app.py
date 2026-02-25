@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import base64
+import html
 from typing import Iterable, List
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 from core.diagram import build_diagram
 from core.generator import DesignGenerator
-from core.schemas import DesignPackage, DesignResponse
+from core.schemas import DesignPackage, DesignResponse, ImplementationPromptPack
 
 
 PAGE_TITLE = "SystemDesign-GPT"
@@ -20,8 +23,11 @@ def init_state() -> None:
     defaults = {
         "question": DEFAULT_QUESTION,
         "design_response": None,
+        "implementation_prompt_pack": None,
+        "open_prompt_pack_in_new_tab": False,
         "error_message": "",
         "need_design": False,
+        "need_prompt_pack": False,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -37,7 +43,12 @@ def _render_list(title: str, items: Iterable[str]) -> None:
         st.markdown(f"- {element}")
 
 
-def _build_export_markdown(question: str, package: DesignPackage, diagram: str) -> str:
+def _build_export_markdown(
+    question: str,
+    package: DesignPackage,
+    diagram: str,
+    prompt_pack: ImplementationPromptPack | None = None,
+) -> str:
     design = package.design
     sections: List[str] = []
     sections.append("# SystemDesign-GPT Output")
@@ -137,8 +148,69 @@ def _build_export_markdown(question: str, package: DesignPackage, diagram: str) 
     sections.append("```mermaid")
     sections.append(diagram)
     sections.append("```")
+    if prompt_pack and prompt_pack.prompts:
+        sections.append("## Best AI Tools For These Prompts")
+        sections.extend(
+            f"- {tool}" for tool in prompt_pack.recommended_tools_overview
+        )
+        sections.append("## Vibe Coding Prompts")
+        for idx, prompt in enumerate(prompt_pack.prompts, start=1):
+            sections.append(f"### Prompt {idx}: {prompt.title}")
+            sections.append(f"- Objective: {prompt.objective}")
+            if prompt.recommended_tools:
+                sections.append(
+                    f"- Best used in: {', '.join(prompt.recommended_tools)}"
+                )
+            sections.append(prompt.prompt)
+        sections.append("## Prompt Pack Metrics")
+        sections.append(
+            f"- Tokens: {prompt_pack.usage_metrics.total_tokens} "
+            f"(prompt {prompt_pack.usage_metrics.prompt_tokens}, completion {prompt_pack.usage_metrics.completion_tokens})"
+        )
+        sections.append(f"- Latency: {prompt_pack.usage_metrics.latency_ms} ms")
+        sections.append(
+            f"- Estimated Cost (USD): {prompt_pack.usage_metrics.estimated_cost_usd}"
+        )
 
     return "\n".join(sections)
+
+
+def _build_prompt_pack_html(prompt_pack: ImplementationPromptPack) -> str:
+    body: List[str] = []
+    body.append("<h1>Vibe Coding Prompts</h1>")
+    if prompt_pack.recommended_tools_overview:
+        body.append("<h2>Best AI Tools</h2><ul>")
+        for tool in prompt_pack.recommended_tools_overview:
+            body.append(f"<li>{html.escape(tool)}</li>")
+        body.append("</ul>")
+    for idx, prompt in enumerate(prompt_pack.prompts, start=1):
+        body.append(f"<h2>{idx}. {html.escape(prompt.title)}</h2>")
+        body.append(f"<p><strong>Objective:</strong> {html.escape(prompt.objective)}</p>")
+        if prompt.recommended_tools:
+            tools = ", ".join(html.escape(tool) for tool in prompt.recommended_tools)
+            body.append(f"<p><strong>Best used in:</strong> {tools}</p>")
+        body.append(f"<pre>{html.escape(prompt.prompt)}</pre>")
+    return (
+        "<!doctype html><html><head><meta charset='utf-8'>"
+        "<title>Vibe Coding Prompts</title>"
+        "<style>body{font-family:Arial,sans-serif;max-width:980px;margin:24px auto;padding:0 16px;line-height:1.5}"
+        "pre{white-space:pre-wrap;background:#f6f8fa;border:1px solid #d0d7de;padding:12px;border-radius:8px}</style>"
+        "</head><body>"
+        + "".join(body)
+        + "</body></html>"
+    )
+
+
+def _open_html_in_new_tab(html_payload: str) -> None:
+    encoded = base64.b64encode(html_payload.encode("utf-8")).decode("utf-8")
+    components.html(
+        (
+            "<script>"
+            f"window.open('data:text/html;base64,{encoded}', '_blank');"
+            "</script>"
+        ),
+        height=0,
+    )
 
 
 def main() -> None:
@@ -158,7 +230,9 @@ def main() -> None:
         else:
             st.session_state["question"] = cleaned
             st.session_state["design_response"] = None
+            st.session_state["implementation_prompt_pack"] = None
             st.session_state["need_design"] = True
+            st.session_state["need_prompt_pack"] = False
             st.session_state["error_message"] = ""
 
     if st.session_state["need_design"]:
@@ -174,6 +248,24 @@ def main() -> None:
         except Exception as exc:
             st.session_state["error_message"] = str(exc)
             st.session_state["need_design"] = False
+
+    if (
+        st.session_state["need_prompt_pack"]
+        and st.session_state.get("design_response") is not None
+    ):
+        try:
+            generator = DesignGenerator()
+            with st.spinner("Generating vibe coding prompts..."):
+                pack = generator.generate_implementation_prompt_pack(
+                    st.session_state["question"],
+                    st.session_state["design_response"],
+                )
+            st.session_state["implementation_prompt_pack"] = pack
+            st.session_state["need_prompt_pack"] = False
+            st.session_state["open_prompt_pack_in_new_tab"] = True
+        except Exception as exc:
+            st.session_state["error_message"] = str(exc)
+            st.session_state["need_prompt_pack"] = False
 
     if st.session_state["error_message"]:
         st.error(st.session_state["error_message"])
@@ -275,10 +367,54 @@ def main() -> None:
         container.subheader("Mermaid Architecture Diagram")
         container.markdown(f"```mermaid\n{diagram}\n```")
 
+        if container.button(
+            "Generate Vibe Coding Prompts",
+            key="generate_vibe_prompts",
+        ):
+            st.session_state["need_prompt_pack"] = True
+            st.session_state["error_message"] = ""
+            st.rerun()
+
+        prompt_pack = st.session_state.get("implementation_prompt_pack")
+        if st.session_state.get("open_prompt_pack_in_new_tab") and prompt_pack:
+            _open_html_in_new_tab(_build_prompt_pack_html(prompt_pack))
+            st.session_state["open_prompt_pack_in_new_tab"] = False
+        if prompt_pack and prompt_pack.prompts:
+            container.subheader("Best AI Tools For Prompt Execution")
+            container.markdown(
+                "- " + "\n- ".join(prompt_pack.recommended_tools_overview)
+            )
+            container.subheader("Vibe Coding Prompts")
+            for idx, prompt in enumerate(prompt_pack.prompts, start=1):
+                container.markdown(f"**{idx}. {prompt.title}**")
+                container.markdown(f"- Objective: {prompt.objective}")
+                if prompt.recommended_tools:
+                    container.markdown(
+                        f"- Best used in: {', '.join(prompt.recommended_tools)}"
+                    )
+                container.text_area(
+                    f"Prompt {idx}",
+                    value=prompt.prompt,
+                    height=220,
+                    key=f"vibe_prompt_{idx}",
+                )
+            container.subheader("Prompt Pack Metrics")
+            container.markdown(
+                f"- Tokens: {prompt_pack.usage_metrics.total_tokens} "
+                f"(prompt {prompt_pack.usage_metrics.prompt_tokens}, completion {prompt_pack.usage_metrics.completion_tokens})"
+            )
+            container.markdown(
+                f"- Latency: {prompt_pack.usage_metrics.latency_ms} ms"
+            )
+            container.markdown(
+                f"- Estimated Cost (USD): {prompt_pack.usage_metrics.estimated_cost_usd}"
+            )
+
         markdown_payload = _build_export_markdown(
             st.session_state["question"],
             package,
             diagram,
+            prompt_pack,
         )
         container.download_button(
             label="Export to Markdown",

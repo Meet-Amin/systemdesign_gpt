@@ -93,3 +93,17 @@ class DesignPackage(BaseModel):
     decision_matrix: List[DecisionMatrixRow] = Field(default_factory=list)
     recommended_option: str = ""
     usage_metrics: UsageMetrics = Field(default_factory=UsageMetrics)
+
+
+class VibePrompt(BaseModel):
+    title: str
+    objective: str
+    recommended_tools: List[str] = Field(default_factory=list)
+    prompt: str
+
+
+class ImplementationPromptPack(BaseModel):
+    generated_for_task: str
+    recommended_tools_overview: List[str] = Field(default_factory=list)
+    prompts: List[VibePrompt] = Field(default_factory=list)
+    usage_metrics: UsageMetrics = Field(default_factory=UsageMetrics)

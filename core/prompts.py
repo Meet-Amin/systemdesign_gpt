@@ -80,6 +80,53 @@ DESIGN_PROMPT = dedent(
     """
 ).strip()
 
+IMPLEMENTATION_PROMPT_SCHEMA = dedent(
+    """
+    {
+      "generated_for_task": string,
+      "recommended_tools_overview": [string],
+      "prompts": [
+        {
+          "title": string,
+          "objective": string,
+          "recommended_tools": [string],
+          "prompt": string
+        }
+      ]
+    }
+    """
+).strip()
+
+IMPLEMENTATION_PROMPTS_PROMPT = dedent(
+    """
+    You are SystemDesign-GPT. Convert the architecture context below into high-quality implementation prompts for AI coding tools.
+    These prompts will be copy-pasted into vibe-coding assistants to implement this feature in a real project.
+
+    Task:
+    {task}
+
+    Architecture summary (JSON):
+    {design_json}
+
+    Return strict RFC8259 JSON matching this schema:
+    {schema}
+
+    Requirements:
+    - Return 8 to 12 prompts.
+    - Fill `recommended_tools_overview` with 4-6 best AI coding tools for these prompts (e.g., Cursor, Windsurf, GitHub Copilot Chat, ChatGPT, Claude).
+    - Make prompts execution-oriented and repository-aware (ask assistant to inspect current codebase before changes).
+    - Cover full lifecycle: planning, backend/API, database migration, frontend integration (if applicable), auth/security, testing, observability, deployment/rollback.
+    - For each prompt, include `recommended_tools` with 1-3 tools from the overview that best fit that prompt.
+    - Each `prompt` should include:
+      1) expected files to inspect or create,
+      2) implementation steps,
+      3) validation commands/tests,
+      4) done criteria.
+    - Keep each prompt concise but actionable.
+    - Do not include markdown fences.
+    """
+).strip()
+
 
 def _normalize_question(question: str) -> str:
     normalized_question = question.strip()
@@ -109,4 +156,16 @@ def build_design_prompt(question: str, clarifications: Sequence[str]) -> str:
         question=normalized_question,
         schema=DESIGN_SCHEMA,
         clarifications=answers,
+    )
+
+
+def build_implementation_prompts_prompt(task: str, design_json: str) -> str:
+    normalized_task = _normalize_question(task)
+    normalized_design = design_json.strip()
+    if not normalized_design:
+        raise ValueError("design_json must be a non-empty string")
+    return IMPLEMENTATION_PROMPTS_PROMPT.format(
+        task=normalized_task,
+        design_json=normalized_design,
+        schema=IMPLEMENTATION_PROMPT_SCHEMA,
     )

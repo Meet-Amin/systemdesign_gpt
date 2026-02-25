@@ -9,6 +9,8 @@ This is a Streamlit app that converts real project implementation tasks into str
 - **Quality scoring engine:** Each design is auto-scored across reliability, security, observability, delivery, and completeness.
 - **Architecture alternatives:** Generates latency-first, cost-first, and delivery-first options with a decision matrix and recommendation.
 - **Run metrics:** Tracks latency, token usage, and estimated model cost for each generation.
+- **Vibe coding prompt pack:** One-click button to generate actionable implementation prompts you can paste into coding assistants.
+  - Includes recommended AI tools before prompts and per-prompt tool suggestions.
 - **Architecture diagrams:** It generates a Mermaid diagram to visualize the architecture. If the AI messes up the diagram, the app tries to build a fallback from the components list.
 - **Markdown export:** You can download the whole thing to a Markdown file when you're done.
 - **Simple and fast:** It's a single-page Streamlit app that uses `gpt-4o-mini` to keep things quick and cheap.
@@ -63,9 +65,11 @@ systemdesign_gpt/
    uvicorn api:app --reload --port 8000
    ```
    - Portfolio endpoint: `POST /design-package-from-task` for full package output (design + score + alternatives + metrics).
+   - Prompt endpoint: `POST /implementation-prompts-from-task` for implementation prompt pack generation.
 3. The Streamlit interface starts with an example implementation task. Replace it with your project requirement.
 4. Click **Generate architecture** for direct task-to-architecture output.
-5. Download the Markdown report via the **Export to Markdown** button.
+5. Click **Generate Vibe Coding Prompts** to produce implementation prompts for your repo.
+6. Download the Markdown report via the **Export to Markdown** button.
 
 ## Notes
 - The app focuses on direct project-task architecture generation.

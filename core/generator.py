@@ -10,7 +10,11 @@ from dotenv import load_dotenv
 from openai import OpenAI, OpenAIError
 
 from .diagram import build_diagram
-from .prompts import build_clarification_prompt, build_design_prompt
+from .prompts import (
+    build_clarification_prompt,
+    build_design_prompt,
+    build_implementation_prompts_prompt,
+)
 from .quality import evaluate_design_quality
 from .schemas import (
     ArchitectureAlternative,
@@ -18,6 +22,7 @@ from .schemas import (
     DecisionMatrixRow,
     DesignPackage,
     DesignResponse,
+    ImplementationPromptPack,
     UsageMetrics,
 )
 
@@ -176,6 +181,44 @@ class DesignGenerator:
 
         return normalized
 
+    def _normalize_prompt_pack_payload(self, payload: dict, task: str) -> dict:
+        normalized = dict(payload)
+        normalized["generated_for_task"] = self._coerce_text(
+            normalized.get("generated_for_task")
+        ) or task
+        overview = self._coerce_list(normalized.get("recommended_tools_overview"))
+        if not overview:
+            overview = [
+                "Cursor",
+                "Windsurf",
+                "GitHub Copilot Chat",
+                "ChatGPT",
+                "Claude",
+            ]
+        normalized["recommended_tools_overview"] = overview
+        prompts = normalized.get("prompts")
+        normalized_prompts: List[dict] = []
+        if isinstance(prompts, list):
+            for entry in prompts:
+                if not isinstance(entry, dict):
+                    continue
+                title = self._coerce_text(entry.get("title"))
+                objective = self._coerce_text(entry.get("objective"))
+                prompt_text = self._coerce_text(entry.get("prompt"))
+                tools = self._coerce_list(entry.get("recommended_tools"))
+                if not prompt_text:
+                    continue
+                normalized_prompts.append(
+                    {
+                        "title": title or "Implementation Step",
+                        "objective": objective or "Implement a scoped part of the task.",
+                        "recommended_tools": tools[:3] if tools else overview[:2],
+                        "prompt": prompt_text,
+                    }
+                )
+        normalized["prompts"] = normalized_prompts
+        return normalized
+
     def generate_clarifying_questions(self, question: str) -> ClarificationResponse:
         prompt = build_clarification_prompt(question)
         raw, _ = self._call_completion(prompt)
@@ -287,3 +330,15 @@ class DesignGenerator:
             recommended_option=recommended,
             usage_metrics=usage,
         )
+
+    def generate_implementation_prompt_pack(
+        self, task: str, package: DesignPackage
+    ) -> ImplementationPromptPack:
+        design_json = package.model_dump_json()
+        prompt = build_implementation_prompts_prompt(task, design_json)
+        raw, usage = self._call_completion(prompt)
+        payload = self._parse_json(raw)
+        payload = self._normalize_prompt_pack_payload(payload, task)
+        result = ImplementationPromptPack(**payload)
+        result.usage_metrics = usage
+        return result
