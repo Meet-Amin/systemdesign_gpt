@@ -8,8 +8,21 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from core.diagram import build_diagram
+from core.exporters import to_confluence_wiki, to_github_pr_comment, to_pdf_bytes
+from core.features import diff_design_packages, estimate_cost
 from core.generator import DesignGenerator
-from core.schemas import DesignPackage, DesignResponse, ImplementationPromptPack
+from core.history import (
+    add_reviewer_comment,
+    create_history_entry,
+    list_history_entries,
+    set_review_status,
+)
+from core.schemas import (
+    CostModelInput,
+    DesignPackage,
+    DesignResponse,
+    ImplementationPromptPack,
+)
 
 PAGE_TITLE = "SystemDesign-GPT"
 DEFAULT_QUESTION = (
@@ -23,8 +36,15 @@ st.set_page_config(page_title=PAGE_TITLE, layout="wide")
 def init_state() -> None:
     defaults = {
         "question": DEFAULT_QUESTION,
+        "diff_question": "",
         "design_response": None,
         "implementation_prompt_pack": None,
+        "followup_response": None,
+        "threat_model": None,
+        "test_plan": None,
+        "cost_estimate": None,
+        "design_diff": None,
+        "history_entries": [],
         "open_prompt_pack_in_new_tab": False,
         "error_message": "",
         "need_design": False,
@@ -255,6 +275,8 @@ def main() -> None:
                     st.session_state["question"]
                 )
             st.session_state["design_response"] = package
+            create_history_entry(st.session_state["question"], package, tags=[])
+            st.session_state["history_entries"] = list_history_entries()
             st.session_state["need_design"] = False
             st.session_state["error_message"] = ""
         except Exception as exc:
@@ -424,6 +446,178 @@ def main() -> None:
                 "- Estimated Cost (USD): "
                 f"{prompt_pack.usage_metrics.estimated_cost_usd}"
             )
+
+        container.subheader("Follow-up Q&A")
+        followup_input = container.text_input(
+            "Ask follow-up question",
+            key="followup_input",
+            placeholder="Example: How do we optimize this architecture for lower cost?",
+        )
+        if container.button("Run Follow-up Analysis", key="followup_btn"):
+            if followup_input.strip():
+                try:
+                    generator = DesignGenerator()
+                    followup_response = generator.generate_follow_up_response(
+                        st.session_state["question"], package, followup_input.strip()
+                    )
+                    st.session_state["followup_response"] = followup_response
+                except Exception as exc:
+                    st.session_state["error_message"] = str(exc)
+            else:
+                st.session_state["error_message"] = "Follow-up question cannot be empty."
+        if st.session_state.get("followup_response"):
+            followup_response = st.session_state["followup_response"]
+            container.markdown(f"**Answer:** {followup_response.answer}")
+            if followup_response.impacted_sections:
+                container.markdown(
+                    "- Impacted sections: "
+                    + ", ".join(followup_response.impacted_sections)
+                )
+            if followup_response.revised_plan:
+                container.markdown("**Revised plan**")
+                for step in followup_response.revised_plan:
+                    container.markdown(f"- {step}")
+
+        container.subheader("Architecture Diff")
+        diff_task = container.text_area(
+            "Second task for comparison",
+            value=st.session_state.get("diff_question", ""),
+            height=100,
+        )
+        if container.button("Compare Tasks", key="diff_btn"):
+            clean_diff_task = diff_task.strip()
+            if clean_diff_task:
+                try:
+                    generator = DesignGenerator()
+                    with st.spinner("Generating comparison design..."):
+                        other_package = generator.generate_design_package_from_task(
+                            clean_diff_task
+                        )
+                    st.session_state["diff_question"] = clean_diff_task
+                    st.session_state["design_diff"] = diff_design_packages(
+                        st.session_state["question"], package, clean_diff_task, other_package
+                    )
+                except Exception as exc:
+                    st.session_state["error_message"] = str(exc)
+        if st.session_state.get("design_diff"):
+            design_diff = st.session_state["design_diff"]
+            container.markdown(f"**Diff summary:** {design_diff.summary}")
+            _render_list("Added Components", design_diff.added_components)
+            _render_list("Removed Components", design_diff.removed_components)
+            _render_list("Added Requirements", design_diff.added_requirements)
+            _render_list("Removed Requirements", design_diff.removed_requirements)
+            _render_list("Risk Changes", design_diff.risk_changes)
+
+        container.subheader("Team Review Workflow")
+        history_entries = list_history_entries()
+        st.session_state["history_entries"] = history_entries
+        if history_entries:
+            selected = container.selectbox(
+                "Pick version to review",
+                options=[entry.version_id for entry in history_entries],
+                key="history_select",
+            )
+            status_col, comment_col = container.columns(2)
+            status = status_col.selectbox(
+                "Set status",
+                options=["draft", "approved", "needs_changes"],
+                key="status_select",
+            )
+            if status_col.button("Update Status", key="status_update"):
+                set_review_status(selected, status)
+                st.session_state["history_entries"] = list_history_entries()
+            comment = comment_col.text_input("Add review comment", key="review_comment")
+            if comment_col.button("Add Comment", key="comment_add"):
+                add_reviewer_comment(selected, comment)
+                st.session_state["history_entries"] = list_history_entries()
+            chosen = next((e for e in st.session_state["history_entries"] if e.version_id == selected), None)
+            if chosen:
+                container.markdown(f"**Current status:** {chosen.status}")
+                _render_list("Reviewer Comments", chosen.reviewer_comments)
+
+        container.subheader("Cost Model Calculator")
+        c1, c2, c3, c4 = container.columns(4)
+        model_input = CostModelInput(
+            monthly_active_users=c1.number_input("MAU", min_value=1, value=10000),
+            peak_qps=c2.number_input("Peak QPS", min_value=1, value=100),
+            storage_gb=c3.number_input("Storage GB", min_value=1, value=200),
+            retention_days=c4.number_input("Retention days", min_value=1, value=30),
+        )
+        if container.button("Estimate Cost", key="cost_btn"):
+            st.session_state["cost_estimate"] = estimate_cost(package, model_input)
+        if st.session_state.get("cost_estimate"):
+            estimate = st.session_state["cost_estimate"]
+            container.metric("Estimated Monthly Cost", f"${estimate.total_monthly_cost_usd}")
+            for item in estimate.items:
+                container.markdown(
+                    f"- **{item.category}**: ${item.monthly_cost_usd} ({item.rationale})"
+                )
+
+        container.subheader("Threat Model")
+        if container.button("Generate Threat Model", key="threat_btn"):
+            try:
+                generator = DesignGenerator()
+                st.session_state["threat_model"] = generator.generate_threat_model(
+                    st.session_state["question"], package
+                )
+            except Exception as exc:
+                st.session_state["error_message"] = str(exc)
+        if st.session_state.get("threat_model"):
+            threat_model = st.session_state["threat_model"]
+            container.markdown(f"**Methodology:** {threat_model.methodology}")
+            for item in threat_model.threats:
+                container.markdown(
+                    f"- **{item.category}** | Threat: {item.threat} | "
+                    f"Impact: {item.impact} | Mitigation: {item.mitigation}"
+                )
+            _render_list("Residual Risks", threat_model.residual_risks)
+
+        container.subheader("Test Plan")
+        if container.button("Generate Test Plan", key="test_plan_btn"):
+            try:
+                generator = DesignGenerator()
+                st.session_state["test_plan"] = generator.generate_test_plan(
+                    st.session_state["question"], package
+                )
+            except Exception as exc:
+                st.session_state["error_message"] = str(exc)
+        if st.session_state.get("test_plan"):
+            test_plan = st.session_state["test_plan"]
+            for case in test_plan.cases:
+                container.markdown(f"**{case.name}** ({case.level})")
+                container.markdown(f"- Objective: {case.objective}")
+                for step in case.steps:
+                    container.markdown(f"- Step: {step}")
+                container.markdown(f"- Success criteria: {case.success_criteria}")
+            _render_list("CI Gates", test_plan.ci_gates)
+
+        container.subheader("Export Pack")
+        confluence_payload = to_confluence_wiki(
+            st.session_state["question"], package, prompt_pack
+        )
+        github_comment_payload = to_github_pr_comment(st.session_state["question"], package)
+        container.download_button(
+            label="Export Confluence (wiki markup)",
+            data=confluence_payload,
+            file_name="systemdesign-gpt-confluence.txt",
+            mime="text/plain",
+        )
+        container.download_button(
+            label="Export GitHub PR Comment",
+            data=github_comment_payload,
+            file_name="systemdesign-gpt-pr-comment.md",
+            mime="text/markdown",
+        )
+        pdf_payload = to_pdf_bytes(st.session_state["question"], package)
+        if pdf_payload:
+            container.download_button(
+                label="Export PDF",
+                data=pdf_payload,
+                file_name="systemdesign-gpt-output.pdf",
+                mime="application/pdf",
+            )
+        else:
+            container.caption("PDF export needs `reportlab` installed.")
 
         markdown_payload = _build_export_markdown(
             st.session_state["question"],

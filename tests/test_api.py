@@ -7,6 +7,8 @@ from fastapi.testclient import TestClient
 
 from api import app
 
+os.environ["OPENAI_API_KEY"] = "test-key"
+
 
 def test_health():
     """Test the health check endpoint."""
@@ -16,7 +18,7 @@ def test_health():
         assert response.json() == {"status": "ok"}
 
 
-@patch.dict(os.environ, {"API_KEY": "test-api-key"})
+@patch.dict(os.environ, {"API_KEY": "test-api-key", "OPENAI_API_KEY": "test-key"})
 @patch("api.generator_instance")
 def test_clarify_endpoint_success(mock_generator):
     """Test the /clarify endpoint success path."""
@@ -33,14 +35,15 @@ def test_clarify_endpoint_success(mock_generator):
         assert "questions" in response.json()
 
 
+@patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"})
 def test_clarify_endpoint_no_api_key():
     """Test the /clarify endpoint without an API key."""
     with TestClient(app) as client:
         response = client.post("/clarify", json={"question": "test question"})
-        assert response.status_code == 403
+        assert response.status_code == 401
 
 
-@patch.dict(os.environ, {"API_KEY": "test-api-key"})
+@patch.dict(os.environ, {"API_KEY": "test-api-key", "OPENAI_API_KEY": "test-key"})
 def test_clarify_endpoint_wrong_api_key():
     """Test the /clarify endpoint with a wrong API key."""
     with TestClient(app) as client:

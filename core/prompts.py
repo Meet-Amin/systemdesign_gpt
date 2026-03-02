@@ -146,6 +146,101 @@ IMPLEMENTATION_PROMPTS_PROMPT = dedent(
     """
 ).strip()
 
+FOLLOW_UP_SCHEMA = dedent(
+    """
+    {
+      "answer": string,
+      "impacted_sections": [string],
+      "revised_plan": [string]
+    }
+    """
+).strip()
+
+FOLLOW_UP_PROMPT = dedent(
+    """
+    You are SystemDesign-GPT. Answer a follow-up question about an existing design.
+    Use the package JSON as source of truth and keep recommendations realistic.
+
+    Original task:
+    {task}
+
+    Design package JSON:
+    {package_json}
+
+    Follow-up question:
+    {followup}
+
+    Return strict RFC8259 JSON matching this schema:
+    {schema}
+    """
+).strip()
+
+THREAT_MODEL_SCHEMA = dedent(
+    """
+    {
+      "methodology": string,
+      "threats": [
+        {
+          "category": string,
+          "threat": string,
+          "impact": string,
+          "mitigation": string
+        }
+      ],
+      "residual_risks": [string]
+    }
+    """
+).strip()
+
+THREAT_MODEL_PROMPT = dedent(
+    """
+    You are SystemDesign-GPT. Generate a concise STRIDE-style threat model
+    based on the architecture package below.
+
+    Task:
+    {task}
+
+    Package JSON:
+    {package_json}
+
+    Return strict RFC8259 JSON matching this schema:
+    {schema}
+    """
+).strip()
+
+TEST_PLAN_SCHEMA = dedent(
+    """
+    {
+      "generated_for_task": string,
+      "cases": [
+        {
+          "name": string,
+          "objective": string,
+          "level": "api" | "integration" | "load" | "chaos" | "acceptance",
+          "steps": [string],
+          "success_criteria": string
+        }
+      ],
+      "ci_gates": [string]
+    }
+    """
+).strip()
+
+TEST_PLAN_PROMPT = dedent(
+    """
+    You are SystemDesign-GPT. Generate an actionable test plan from this design package.
+
+    Task:
+    {task}
+
+    Package JSON:
+    {package_json}
+
+    Return strict RFC8259 JSON matching this schema:
+    {schema}
+    """
+).strip()
+
 
 def _normalize_question(question: str) -> str:
     normalized_question = question.strip()
@@ -187,4 +282,29 @@ def build_implementation_prompts_prompt(task: str, design_json: str) -> str:
         task=normalized_task,
         design_json=normalized_design,
         schema=IMPLEMENTATION_PROMPT_SCHEMA,
+    )
+
+
+def build_follow_up_prompt(task: str, package_json: str, followup: str) -> str:
+    return FOLLOW_UP_PROMPT.format(
+        task=_normalize_question(task),
+        package_json=package_json.strip(),
+        followup=_normalize_question(followup),
+        schema=FOLLOW_UP_SCHEMA,
+    )
+
+
+def build_threat_model_prompt(task: str, package_json: str) -> str:
+    return THREAT_MODEL_PROMPT.format(
+        task=_normalize_question(task),
+        package_json=package_json.strip(),
+        schema=THREAT_MODEL_SCHEMA,
+    )
+
+
+def build_test_plan_prompt(task: str, package_json: str) -> str:
+    return TEST_PLAN_PROMPT.format(
+        task=_normalize_question(task),
+        package_json=package_json.strip(),
+        schema=TEST_PLAN_SCHEMA,
     )

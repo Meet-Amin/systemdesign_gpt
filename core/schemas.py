@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List
+from typing import List, Literal
 
 from pydantic import BaseModel, Field
 
@@ -109,3 +109,76 @@ class ImplementationPromptPack(BaseModel):
     recommended_tools_overview: List[str] = Field(default_factory=list)
     prompts: List[VibePrompt] = Field(default_factory=list)
     usage_metrics: UsageMetrics = Field(default_factory=UsageMetrics)
+
+
+class DesignDiff(BaseModel):
+    from_task: str
+    to_task: str
+    added_components: List[str] = Field(default_factory=list)
+    removed_components: List[str] = Field(default_factory=list)
+    added_requirements: List[str] = Field(default_factory=list)
+    removed_requirements: List[str] = Field(default_factory=list)
+    risk_changes: List[str] = Field(default_factory=list)
+    summary: str
+
+
+class FollowUpResponse(BaseModel):
+    answer: str
+    impacted_sections: List[str] = Field(default_factory=list)
+    revised_plan: List[str] = Field(default_factory=list)
+
+
+class HistoryEntry(BaseModel):
+    version_id: str
+    created_at: str
+    task: str
+    tags: List[str] = Field(default_factory=list)
+    status: Literal["draft", "approved", "needs_changes"] = "draft"
+    reviewer_comments: List[str] = Field(default_factory=list)
+    package: DesignPackage
+
+
+class CostModelInput(BaseModel):
+    monthly_active_users: int = Field(10000, ge=1)
+    peak_qps: int = Field(100, ge=1)
+    storage_gb: int = Field(200, ge=1)
+    retention_days: int = Field(30, ge=1)
+
+
+class CostBreakdownItem(BaseModel):
+    category: str
+    monthly_cost_usd: float = Field(..., ge=0)
+    rationale: str
+
+
+class CostEstimate(BaseModel):
+    assumptions: List[str] = Field(default_factory=list)
+    items: List[CostBreakdownItem] = Field(default_factory=list)
+    total_monthly_cost_usd: float = Field(..., ge=0)
+
+
+class ThreatItem(BaseModel):
+    category: str
+    threat: str
+    impact: str
+    mitigation: str
+
+
+class ThreatModel(BaseModel):
+    methodology: str = "STRIDE-lite"
+    threats: List[ThreatItem] = Field(default_factory=list)
+    residual_risks: List[str] = Field(default_factory=list)
+
+
+class TestCase(BaseModel):
+    name: str
+    objective: str
+    level: Literal["api", "integration", "load", "chaos", "acceptance"]
+    steps: List[str] = Field(default_factory=list)
+    success_criteria: str
+
+
+class TestPlan(BaseModel):
+    generated_for_task: str
+    cases: List[TestCase] = Field(default_factory=list)
+    ci_gates: List[str] = Field(default_factory=list)

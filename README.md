@@ -8,6 +8,14 @@ This is a Streamlit app that converts real project implementation tasks into str
 - **Industry-grade output:** Includes API contracts, data model entities, sequence flows, consistency decisions, reliability, security, observability/SLOs, deployment, DR, cost, testing, and ops runbook.
 - **Quality scoring engine:** Each design is auto-scored across reliability, security, observability, delivery, and completeness.
 - **Architecture alternatives:** Generates latency-first, cost-first, and delivery-first options with a decision matrix and recommendation.
+- **Architecture diff mode:** Compare two tasks/designs and inspect added/removed components, requirements, and risk deltas.
+- **Follow-up Q&A:** Ask iterative architecture questions and get impacted sections plus a revised action plan.
+- **Design version history:** Auto-saves generated design packages with version IDs and timestamps.
+- **Team review workflow:** Track `draft` / `approved` / `needs_changes` status and reviewer comments.
+- **Cost model calculator:** Estimate monthly infra spend from MAU/QPS/storage/retention inputs.
+- **Threat modeling:** Generates STRIDE-lite threats with mitigations and residual risks.
+- **Test plan generation:** Produces API/integration/load/chaos/acceptance test cases and CI gates.
+- **Expanded exports:** Markdown, Confluence wiki markup, GitHub PR comment format, and optional PDF.
 - **Run metrics:** Tracks latency, token usage, and estimated model cost for each generation.
 - **Vibe coding prompt pack:** One-click button to generate actionable implementation prompts you can paste into coding assistants.
   - Includes recommended AI tools before prompts and per-prompt tool suggestions.
@@ -66,6 +74,17 @@ systemdesign_gpt/
    ```
    - Portfolio endpoint: `POST /design-package-from-task` for full package output (design + score + alternatives + metrics).
    - Prompt endpoint: `POST /implementation-prompts-from-task` for implementation prompt pack generation.
+   - New endpoints:
+     - `POST /design-diff-from-tasks`
+     - `POST /follow-up`
+     - `POST /threat-model-from-task`
+     - `POST /test-plan-from-task`
+     - `POST /cost-estimate-from-task`
+     - `POST /exports-from-task`
+     - `GET /design-history`
+     - `GET /design-history/{version_id}`
+     - `POST /design-history/{version_id}/status`
+     - `POST /design-history/{version_id}/comments`
 3. The Streamlit interface starts with an example implementation task. Replace it with your project requirement.
 4. Click **Generate architecture** for direct task-to-architecture output.
 5. Click **Generate Vibe Coding Prompts** to produce implementation prompts for your repo.

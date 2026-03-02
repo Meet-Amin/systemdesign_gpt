@@ -13,7 +13,10 @@ from .diagram import build_diagram
 from .prompts import (
     build_clarification_prompt,
     build_design_prompt,
+    build_follow_up_prompt,
     build_implementation_prompts_prompt,
+    build_test_plan_prompt,
+    build_threat_model_prompt,
 )
 from .quality import evaluate_design_quality
 from .schemas import (
@@ -22,7 +25,10 @@ from .schemas import (
     DecisionMatrixRow,
     DesignPackage,
     DesignResponse,
+    FollowUpResponse,
     ImplementationPromptPack,
+    TestPlan,
+    ThreatModel,
     UsageMetrics,
 )
 
@@ -347,3 +353,26 @@ class DesignGenerator:
         result = ImplementationPromptPack(**payload)
         result.usage_metrics = usage
         return result
+
+    def generate_follow_up_response(
+        self, task: str, package: DesignPackage, followup: str
+    ) -> FollowUpResponse:
+        package_json = package.model_dump_json()
+        prompt = build_follow_up_prompt(task, package_json, followup)
+        raw, _ = self._call_completion(prompt)
+        payload = self._parse_json(raw)
+        return FollowUpResponse(**payload)
+
+    def generate_threat_model(self, task: str, package: DesignPackage) -> ThreatModel:
+        package_json = package.model_dump_json()
+        prompt = build_threat_model_prompt(task, package_json)
+        raw, _ = self._call_completion(prompt)
+        payload = self._parse_json(raw)
+        return ThreatModel(**payload)
+
+    def generate_test_plan(self, task: str, package: DesignPackage) -> TestPlan:
+        package_json = package.model_dump_json()
+        prompt = build_test_plan_prompt(task, package_json)
+        raw, _ = self._call_completion(prompt)
+        payload = self._parse_json(raw)
+        return TestPlan(**payload)
