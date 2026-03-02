@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Tuple
+from typing import List
 
 from .schemas import DesignResponse, QualityDimension, QualityReport
 
@@ -65,9 +65,15 @@ def evaluate_design_quality(design: DesignResponse) -> QualityReport:
         "migration",
     ]
 
-    reliability_score = _score_by_presence(design.reliability_and_resilience, reliability_keywords)
-    security_score = _score_by_presence(design.security_and_compliance, security_keywords)
-    observability_score = _score_by_presence(design.observability_and_slos, operations_keywords)
+    reliability_score = _score_by_presence(
+        design.reliability_and_resilience, reliability_keywords
+    )
+    security_score = _score_by_presence(
+        design.security_and_compliance, security_keywords
+    )
+    observability_score = _score_by_presence(
+        design.observability_and_slos, operations_keywords
+    )
     delivery_score = _score_by_presence(
         design.deployment_and_release_strategy, delivery_keywords
     )
@@ -119,15 +125,27 @@ def evaluate_design_quality(design: DesignResponse) -> QualityReport:
     missing = _missing_sections(design)
     recommendations: List[str] = []
     if reliability_score < 7:
-        recommendations.append("Add idempotency, DLQ policy, retries with backoff, and failover strategy.")
+        recommendations.append(
+            "Add idempotency, DLQ policy, retries with backoff, and failover strategy."
+        )
     if security_score < 7:
-        recommendations.append("Add threat model, key rotation, RBAC model, and audit/event retention policy.")
+        recommendations.append(
+            "Add threat model, key rotation, RBAC model, and audit/event "
+            "retention policy."
+        )
     if observability_score < 7:
-        recommendations.append("Define golden signals, SLO targets, and pager-backed alert thresholds.")
+        recommendations.append(
+            "Define golden signals, SLO targets, and pager-backed alert thresholds."
+        )
     if delivery_score < 7:
-        recommendations.append("Add canary rollout with automated rollback and schema migration guardrails.")
+        recommendations.append(
+            "Add canary rollout with automated rollback and schema migration "
+            "guardrails."
+        )
     if not recommendations:
-        recommendations.append("Quality is strong; next step is benchmark-based load and chaos validation.")
+        recommendations.append(
+            "Quality is strong; next step is benchmark-based load and chaos validation."
+        )
 
     return QualityReport(
         total_score=total_score,
@@ -135,4 +153,3 @@ def evaluate_design_quality(design: DesignResponse) -> QualityReport:
         missing_areas=missing,
         recommendations=recommendations,
     )
-

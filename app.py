@@ -11,9 +11,10 @@ from core.diagram import build_diagram
 from core.generator import DesignGenerator
 from core.schemas import DesignPackage, DesignResponse, ImplementationPromptPack
 
-
 PAGE_TITLE = "SystemDesign-GPT"
-DEFAULT_QUESTION = "Implement real-time notifications for a project management SaaS app."
+DEFAULT_QUESTION = (
+    "Implement real-time notifications for a project management SaaS app."
+)
 
 
 st.set_page_config(page_title=PAGE_TITLE, layout="wide")
@@ -65,9 +66,7 @@ def _build_export_markdown(
         sections.extend(f"- {item}" for item in package.quality_report.missing_areas)
     if package.quality_report.recommendations:
         sections.append("## Improvement Recommendations")
-        sections.extend(
-            f"- {item}" for item in package.quality_report.recommendations
-        )
+        sections.extend(f"- {item}" for item in package.quality_report.recommendations)
     if package.alternatives:
         sections.append("## Architecture Alternatives")
         for alt in package.alternatives:
@@ -81,8 +80,10 @@ def _build_export_markdown(
         sections.append("## Decision Matrix")
         for row in package.decision_matrix:
             sections.append(
-                f"- **{row.option}** | Latency {row.latency_score}/5 | Cost {row.cost_score}/5 | "
-                f"Complexity {row.complexity_score}/5 | Reliability {row.reliability_score}/5 | "
+                f"- **{row.option}** | Latency {row.latency_score}/5 | "
+                f"Cost {row.cost_score}/5 | "
+                f"Complexity {row.complexity_score}/5 | "
+                f"Reliability {row.reliability_score}/5 | "
                 f"Delivery {row.delivery_speed_score}/5"
             )
             sections.append(f"  - Notes: {row.notes}")
@@ -90,11 +91,14 @@ def _build_export_markdown(
             sections.append(f"- Recommended Option: **{package.recommended_option}**")
     sections.append("## Run Metrics")
     sections.append(
-        f"- Tokens: {package.usage_metrics.total_tokens} "
-        f"(prompt {package.usage_metrics.prompt_tokens}, completion {package.usage_metrics.completion_tokens})"
+        f"- Tokens: {package.usage_metrics.total_tokens} (prompt "
+        f"{package.usage_metrics.prompt_tokens}, completion "
+        f"{package.usage_metrics.completion_tokens})"
     )
     sections.append(f"- Latency: {package.usage_metrics.latency_ms} ms")
-    sections.append(f"- Estimated Cost (USD): {package.usage_metrics.estimated_cost_usd}")
+    sections.append(
+        f"- Estimated Cost (USD): {package.usage_metrics.estimated_cost_usd}"
+    )
     sections.append("## Assumptions")
     sections.extend(f"- {item}" for item in design.assumptions)
     sections.append("## Functional Requirements")
@@ -111,7 +115,9 @@ def _build_export_markdown(
     sections.append(design.high_level_architecture)
     sections.append("## Components")
     for component in design.components:
-        sections.append(f"- **{component.name}** ({component.type}): {component.description}")
+        sections.append(
+            f"- **{component.name}** ({component.type}): {component.description}"
+        )
         if component.connections:
             sections.append(f"  - Connections: {', '.join(component.connections)}")
     sections.append("## Database Design")
@@ -150,9 +156,7 @@ def _build_export_markdown(
     sections.append("```")
     if prompt_pack and prompt_pack.prompts:
         sections.append("## Best AI Tools For These Prompts")
-        sections.extend(
-            f"- {tool}" for tool in prompt_pack.recommended_tools_overview
-        )
+        sections.extend(f"- {tool}" for tool in prompt_pack.recommended_tools_overview)
         sections.append("## Vibe Coding Prompts")
         for idx, prompt in enumerate(prompt_pack.prompts, start=1):
             sections.append(f"### Prompt {idx}: {prompt.title}")
@@ -164,8 +168,9 @@ def _build_export_markdown(
             sections.append(prompt.prompt)
         sections.append("## Prompt Pack Metrics")
         sections.append(
-            f"- Tokens: {prompt_pack.usage_metrics.total_tokens} "
-            f"(prompt {prompt_pack.usage_metrics.prompt_tokens}, completion {prompt_pack.usage_metrics.completion_tokens})"
+            f"- Tokens: {prompt_pack.usage_metrics.total_tokens} (prompt "
+            f"{prompt_pack.usage_metrics.prompt_tokens}, completion "
+            f"{prompt_pack.usage_metrics.completion_tokens})"
         )
         sections.append(f"- Latency: {prompt_pack.usage_metrics.latency_ms} ms")
         sections.append(
@@ -185,7 +190,9 @@ def _build_prompt_pack_html(prompt_pack: ImplementationPromptPack) -> str:
         body.append("</ul>")
     for idx, prompt in enumerate(prompt_pack.prompts, start=1):
         body.append(f"<h2>{idx}. {html.escape(prompt.title)}</h2>")
-        body.append(f"<p><strong>Objective:</strong> {html.escape(prompt.objective)}</p>")
+        body.append(
+            f"<p><strong>Objective:</strong> {html.escape(prompt.objective)}</p>"
+        )
         if prompt.recommended_tools:
             tools = ", ".join(html.escape(tool) for tool in prompt.recommended_tools)
             body.append(f"<p><strong>Best used in:</strong> {tools}</p>")
@@ -193,22 +200,20 @@ def _build_prompt_pack_html(prompt_pack: ImplementationPromptPack) -> str:
     return (
         "<!doctype html><html><head><meta charset='utf-8'>"
         "<title>Vibe Coding Prompts</title>"
-        "<style>body{font-family:Arial,sans-serif;max-width:980px;margin:24px auto;padding:0 16px;line-height:1.5}"
-        "pre{white-space:pre-wrap;background:#f6f8fa;border:1px solid #d0d7de;padding:12px;border-radius:8px}</style>"
-        "</head><body>"
-        + "".join(body)
-        + "</body></html>"
+        "<style>"
+        "body { font-family: Arial, sans-serif; max-width: 980px; margin: 24px auto; "
+        "padding: 0 16px; line-height: 1.5 }"
+        "pre { white-space: pre-wrap; background: #f6f8fa; "
+        "border: 1px solid #d0d7de; padding: 12px; border-radius: 8px }"
+        "</style>"
+        "</head><body>" + "".join(body) + "</body></html>"
     )
 
 
 def _open_html_in_new_tab(html_payload: str) -> None:
     encoded = base64.b64encode(html_payload.encode("utf-8")).decode("utf-8")
     components.html(
-        (
-            "<script>"
-            f"window.open('data:text/html;base64,{encoded}', '_blank');"
-            "</script>"
-        ),
+        (f"<script>window.open('data:text/html;base64,{encoded}', '_blank');</script>"),
         height=0,
     )
 
@@ -217,10 +222,17 @@ def main() -> None:
     init_state()
 
     st.title(PAGE_TITLE)
-    st.write("AI-native assistant that turns real project implementation tasks into production-ready system architecture.")
+    st.write(
+        "AI-native assistant that turns real project implementation tasks into "
+        "production-ready system architecture."
+    )
 
     with st.form("question_form"):
-        question_input = st.text_area("Project implementation task", value=st.session_state["question"], height=150)
+        question_input = st.text_area(
+            "Project implementation task",
+            value=st.session_state["question"],
+            height=150,
+        )
         submit_generate = st.form_submit_button("Generate architecture")
 
     if submit_generate:
@@ -301,20 +313,21 @@ def main() -> None:
             container.subheader("Decision Matrix")
             for row in package.decision_matrix:
                 container.markdown(
-                    f"- **{row.option}** | Latency {row.latency_score}/5 | Cost {row.cost_score}/5 | "
-                    f"Complexity {row.complexity_score}/5 | Reliability {row.reliability_score}/5 | "
+                    f"- **{row.option}** | Latency {row.latency_score}/5 | "
+                    f"Cost {row.cost_score}/5 | "
+                    f"Complexity {row.complexity_score}/5 | "
+                    f"Reliability {row.reliability_score}/5 | "
                     f"Delivery {row.delivery_speed_score}/5"
                 )
                 container.markdown(f"  - {row.notes}")
             if package.recommended_option:
-                container.success(
-                    f"Recommended Option: {package.recommended_option}"
-                )
+                container.success(f"Recommended Option: {package.recommended_option}")
 
         container.subheader("Run Metrics")
         container.markdown(
-            f"- Tokens: {package.usage_metrics.total_tokens} "
-            f"(prompt {package.usage_metrics.prompt_tokens}, completion {package.usage_metrics.completion_tokens})"
+            f"- Tokens: {package.usage_metrics.total_tokens} (prompt "
+            f"{package.usage_metrics.prompt_tokens}, completion "
+            f"{package.usage_metrics.completion_tokens})"
         )
         container.markdown(f"- Latency: {package.usage_metrics.latency_ms} ms")
         container.markdown(
@@ -334,7 +347,9 @@ def main() -> None:
                 f"- **{component.name} ({component.type})**: {component.description}"
             )
             if component.connections:
-                container.markdown(f"  - Connections: {', '.join(component.connections)}")
+                container.markdown(
+                    f"  - Connections: {', '.join(component.connections)}"
+                )
         container.subheader("Database Design")
         container.write(design.database_design)
         container.subheader("Consistency and Transactions")
@@ -400,14 +415,14 @@ def main() -> None:
                 )
             container.subheader("Prompt Pack Metrics")
             container.markdown(
-                f"- Tokens: {prompt_pack.usage_metrics.total_tokens} "
-                f"(prompt {prompt_pack.usage_metrics.prompt_tokens}, completion {prompt_pack.usage_metrics.completion_tokens})"
+                f"- Tokens: {prompt_pack.usage_metrics.total_tokens} (prompt "
+                f"{prompt_pack.usage_metrics.prompt_tokens}, completion "
+                f"{prompt_pack.usage_metrics.completion_tokens})"
             )
+            container.markdown(f"- Latency: {prompt_pack.usage_metrics.latency_ms} ms")
             container.markdown(
-                f"- Latency: {prompt_pack.usage_metrics.latency_ms} ms"
-            )
-            container.markdown(
-                f"- Estimated Cost (USD): {prompt_pack.usage_metrics.estimated_cost_usd}"
+                "- Estimated Cost (USD): "
+                f"{prompt_pack.usage_metrics.estimated_cost_usd}"
             )
 
         markdown_payload = _build_export_markdown(

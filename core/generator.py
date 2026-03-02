@@ -26,7 +26,6 @@ from .schemas import (
     UsageMetrics,
 )
 
-
 MODEL = "gpt-4o-mini"
 
 # Prefer project-local .env values over any stale shell-exported variables.
@@ -41,11 +40,13 @@ class DesignGenerator:
             api_key = api_key[1:-1].strip()
         if not api_key:
             raise EnvironmentError(
-                "OPENAI_API_KEY is not set. Add it to a .env file or export it in your shell."
+                "OPENAI_API_KEY is not set. Add it to a .env file or export it "
+                "in your shell."
             )
         if "your-openai-api-key" in api_key.lower() or "your ope" in api_key.lower():
             raise EnvironmentError(
-                "OPENAI_API_KEY appears to be a placeholder value. Replace it with a real key from platform.openai.com."
+                "OPENAI_API_KEY appears to be a placeholder value. Replace it with a "
+                "real key from platform.openai.com."
             )
         self.client = OpenAI(api_key=api_key)
         self.model = model
@@ -60,8 +61,9 @@ class DesignGenerator:
                     {
                         "role": "system",
                         "content": (
-                            "You are SystemDesign-GPT, an opinionated but practical system design interviewer. "
-                            "Provide structured answers and never stray from JSON when asked."
+                            "You are SystemDesign-GPT, an opinionated but practical "
+                            "system design interviewer. Provide structured answers "
+                            "and never stray from JSON when asked."
                         ),
                     },
                     {"role": "user", "content": prompt},
@@ -122,7 +124,9 @@ class DesignGenerator:
         if value is None:
             return []
         if isinstance(value, list):
-            return [str(item).strip() for item in value if str(item).strip()]
+            return [
+                str(item).strip() for item in value if item is not None and str(item).strip()
+            ]
         text = str(value).strip()
         return [text] if text else []
 
@@ -183,9 +187,9 @@ class DesignGenerator:
 
     def _normalize_prompt_pack_payload(self, payload: dict, task: str) -> dict:
         normalized = dict(payload)
-        normalized["generated_for_task"] = self._coerce_text(
-            normalized.get("generated_for_task")
-        ) or task
+        normalized["generated_for_task"] = (
+            self._coerce_text(normalized.get("generated_for_task")) or task
+        )
         overview = self._coerce_list(normalized.get("recommended_tools_overview"))
         if not overview:
             overview = [
@@ -211,7 +215,8 @@ class DesignGenerator:
                 normalized_prompts.append(
                     {
                         "title": title or "Implementation Step",
-                        "objective": objective or "Implement a scoped part of the task.",
+                        "objective": objective
+                        or "Implement a scoped part of the task.",
                         "recommended_tools": tools[:3] if tools else overview[:2],
                         "prompt": prompt_text,
                     }
