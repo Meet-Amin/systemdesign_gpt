@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from core import history
 from core.schemas import Component, DesignPackage, DesignResponse, QualityReport
 
@@ -56,3 +58,16 @@ def test_history_create_and_update(tmp_path: Path, monkeypatch):
     commented = history.add_reviewer_comment(entry.version_id, "looks good")
     assert commented is not None
     assert commented.reviewer_comments == ["looks good"]
+
+
+def test_history_rejects_invalid_review_status(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(history, "HISTORY_PATH", tmp_path / ".history.json")
+    entry = history.create_history_entry("task", _package(), tags=[])
+
+    with pytest.raises(ValueError):
+        history.set_review_status(entry.version_id, "bogus")
+
+    reloaded = history.list_history_entries()
+    assert len(reloaded) == 1
+    assert reloaded[0].version_id == entry.version_id
+    assert reloaded[0].status == "draft"

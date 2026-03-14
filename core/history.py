@@ -69,7 +69,9 @@ def set_review_status(version_id: str, status: str) -> HistoryEntry | None:
     for idx, entry in enumerate(entries):
         if entry.version_id != version_id:
             continue
-        updated = entry.model_copy(update={"status": status})
+        updated = HistoryEntry.model_validate(
+            entry.model_dump(mode="python") | {"status": status}
+        )
         entries[idx] = updated
         _write_entries(entries)
         return updated
