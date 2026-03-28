@@ -54,7 +54,7 @@ systemdesign_gpt/
    ```bash
    pip install -r requirements.txt
    ```
-3. Set your OpenAI key (never hardcode this value), either as an env var or in a `.env` file:
+3. Set your OpenAI key , either as an env var or in a `.env` file:
    ```bash
    export OPENAI_API_KEY="<your-key>"
    ```
